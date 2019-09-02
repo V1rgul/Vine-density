@@ -59,3 +59,37 @@ function correctDeviation(val, gamma){
 	let centered = val * 2 - 1
 	return .5 + .5 * correctGamma(Math.abs(centered), gamma) * ( (centered>0) ? 1 : -1 )
 }
+function correction(val, params){
+	return correctDeviation(correctGamma(val, params.g || 1), params.dg || 1)
+}
+
+
+
+function mixerGenerator(params){
+	params.forEach(e => {
+		if(!e.add) e.add = 0.0
+		if(!e.mul) e.mul = 0.0
+	})
+	let addTotal = params.reduce((acc, e) => acc+e.add, 0)
+
+	return function(values){
+		let addAcc = 0
+		let mulAcc = 1, mulAddAcc = 0
+
+		values.forEach((v, i) => {
+			let p = params[i]
+
+			addAcc += p.add * v
+
+			let mulEffective =  1 - Math.abs(p.mul) * (1 - v)
+			if(p.mul >= 0){
+				mulAcc *= mulEffective
+			} else {
+				mulAcc *= (1 - mulEffective)
+				mulAddAcc += mulEffective
+			}
+		})
+		let val = (addAcc / addTotal) * mulAcc + mulAddAcc
+		return val
+	}
+}

@@ -11,22 +11,39 @@ let CONF = {
 	},
 	valGen : {
 		arr : [{
-			freqS:          0.02,
-			freqR:          1,
-			ratioAdd:       1.0,
-			ratioMul:       1.0,
-			gamma:          0.2,
-			deviationGamma: 0.3,
+			freqS:  0.02,
+			freqR:  1,
+			cor: {
+				g:  0.25,
+				dg: 0.3,
+			},
+			mix: {
+				add: 1.0,
+				mul: 0.0,
+			},
 		},{
-			freqS:          0.003,
-			freqR:          0.03,
-			ratioAdd:       0.0,
-			ratioMul:       0.3,
-			gamma:          0.3,
-			deviationGamma: 1.0,
+			freqS:  0.003,
+			freqR:  0.03,
+			cor: {
+				g:  0.3,
+				dg: 1.0,
+			},
+			mix: {
+				add: 0.0,
+				mul: 0.3,
+			},
 		}],
+		end: {
+			range: 30,
+			cor: {
+				g:  0.4,
+				dg: 1.0,
+			},
+			mix: {
+				mul: 0.5
+			},
+		},
 		noiseRatio: .15,
-		endGain: 0.1,
 	},
 	color: {
 		scale: linearInterpolationStagesFillT([
@@ -71,7 +88,7 @@ function colorScale(t){
 }
 
 
-let valGenRatioAddSum = CONF.valGen.arr.reduce((acc, e) => acc+e.ratioAdd, 0)
+let mixer = mixerGenerator(CONF.valGen.arr.map(e => e.mix).concat(CONF.valGen.end.mix))
 
 noise.seed(Math.random())
 
@@ -81,27 +98,20 @@ for(let r=0; r < CONF.row.number; r++){
 	for(let s=0; s < CONF.slice.number; s++){
 		let y = CONF.scale * s * CONF.slice.height
 
-		let distanceFromEnd = Math.min(s, CONF.slice.number - s)
+		
 
-		let ratioAdd = 0, ratioMul = 1, ratioMulSum = 0
-
-		CONF.valGen.arr.forEach(e => {
+		let values = CONF.valGen.arr.map(e => {
 			let perlin = .5 + .5 * noise.simplex2( e.freqS * s , e.freqR * r )
-			let corrected = correctDeviation(correctGamma(perlin, e.gamma), e.deviationGamma)
-			
-			ratioAdd += corrected * e.ratioAdd
-
-			if(e.ratioMul >= 0){
-				ratioMul *= 1 - e.ratioMul   * (1 - corrected)
-			} else {
-				ratioMul *=    (-e.ratioMul) * (1 - corrected)
-				ratioMulSum += (-e.ratioMul)
-			}
+			let corrected = correction(perlin, e.cor)
+			return corrected
 		})
 
-		let val = (ratioAdd / valGenRatioAddSum) * ratioMul + ratioMulSum
-		val = clamp(((1-CONF.valGen.noiseRatio) * val) + (CONF.valGen.noiseRatio * (Math.random() * 2 - 1)))
+		let ratioEnd = correction(clamp( Math.min(s, CONF.slice.number - s) / CONF.valGen.end.range, 0, 1), CONF.valGen.end.cor)
+		values.push(ratioEnd)
 
+		let val = mixer(values)
+
+		val = ((1-CONF.valGen.noiseRatio) * val) + (CONF.valGen.noiseRatio * (Math.random() * 2 - 1))
 
 		ctx.fillStyle = colorScale(val)
 		ctx.fillRect(x, y, rowWidth, sliceHeight);		
