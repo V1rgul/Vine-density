@@ -6,15 +6,15 @@ let CONF = {
 		spacing: 3,
 	},
 	slice: {
-		number: 400,
+		number: 600,
 		height: 1
 	},
 	color : {
-		frequency: 12,
-		frequencyH: .2,
-		noiseRatio: .03,
-		deviationGamma: 5,
-		gamma: 1,
+		frequency: 0.02,
+		frequencyH: 0.3,
+		noiseRatio: .2,
+		deviationGamma: .3,
+		gamma: .2,
 	},
 	axis: {
 		spacing: 5,
@@ -22,10 +22,15 @@ let CONF = {
 	},
 }
 CONF.color.scale = linearInterpolationStagesFillT([
-	{t:0.10, o:"#FF6666"},
-	{t:0.15, o:"#33EE77"},
-	{t:1.00, o:"#00AA00"},
+	{t:0.20, o:"#FF6666"},
+	{t:0.25, o:"#88FF88"},
+	{t:0.40, o:"#00FF00"},
+	{t:1.00, o:"#0088AA"},
 ])
+// CONF.color.scale = linearInterpolationStagesFillT([
+// 	{t:0, o:"yellow"},
+// 	{t:1, o:"navy"},
+// ])
 
 
 let canvas = document.querySelector('canvas')
@@ -68,16 +73,14 @@ for(let r=0; r < CONF.row.number; r++){
 
 		let distanceFromEnd = Math.min(s, CONF.slice.number - s)
 
-		let perlinSource = .5 + .5 * noise.simplex2( CONF.color.frequency * s / CONF.slice.number, r*frequencyH  )
+		let perlinSource = .5 + .5 * noise.simplex2( CONF.color.frequency * s , r*frequencyH  )
 		let perlin = myCorrection(perlinSource)
 
-		let val = ((1-CONF.color.noiseRatio) * perlin) + (CONF.color.noiseRatio * Math.random())
+		let val = clamp(((1-CONF.color.noiseRatio) * perlin) + (CONF.color.noiseRatio * (Math.random() * 2 - 1)))
 
 		
 		ctx.fillStyle = colorScale(val)
-		ctx.fillRect(x, y, rowWidth, sliceHeight);
-
-		
+		ctx.fillRect(x, y, rowWidth, sliceHeight);		
 	}
 }
 
