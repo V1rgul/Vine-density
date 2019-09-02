@@ -11,23 +11,22 @@ let CONF = {
 	},
 	valGen : {
 		arr : [{
-			freq:           0.02,
+			freqS:          0.02,
+			freqR:          1,
 			ratioAdd:       1.0,
 			ratioMul:       1.0,
 			gamma:          0.2,
 			deviationGamma: 0.3,
 		},{
-			freq:           0.003,
+			freqS:          0.003,
+			freqR:          0.03,
 			ratioAdd:       0.0,
-			ratioMul:       0.2,
-			gamma:          1.0,
+			ratioMul:       0.3,
+			gamma:          0.3,
 			deviationGamma: 1.0,
 		}],
-		freqH: {
-			val : 10.0,
-			resetEveryTime: false,
-		},
-		noiseRatio: .2,
+		noiseRatio: .15,
+		endGain: 0.1,
 	},
 	color: {
 		scale: linearInterpolationStagesFillT([
@@ -79,20 +78,15 @@ noise.seed(Math.random())
 for(let r=0; r < CONF.row.number; r++){
 	let x = CONF.scale * r * ( CONF.row.width + CONF.row.spacing )
 
-	if(CONF.valGen.freqH.resetEveryTime){
-		noise.seed(Math.random())
-	}
-
 	for(let s=0; s < CONF.slice.number; s++){
 		let y = CONF.scale * s * CONF.slice.height
 
 		let distanceFromEnd = Math.min(s, CONF.slice.number - s)
 
-
 		let ratioAdd = 0, ratioMul = 1, ratioMulSum = 0
 
 		CONF.valGen.arr.forEach(e => {
-			let perlin = .5 + .5 * noise.simplex2( e.freq * s , e.freq * CONF.valGen.freqH.val * r )
+			let perlin = .5 + .5 * noise.simplex2( e.freqS * s , e.freqR * r )
 			let corrected = correctDeviation(correctGamma(perlin, e.gamma), e.deviationGamma)
 			
 			ratioAdd += corrected * e.ratioAdd
