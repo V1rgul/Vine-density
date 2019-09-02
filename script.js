@@ -9,24 +9,40 @@ let CONF = {
 		number: 600,
 		height: 1
 	},
-	color : {
-		frequency: 0.02,
-		frequencyH: 0.3,
+	valGen : {
+		arr : [{
+			freq:           0.02,
+			ratioAdd:       1.0,
+			ratioMul:       1.0,
+			gamma:          0.2,
+			deviationGamma: 0.3,
+		},{
+			freq:           0.003,
+			ratioAdd:       0.0,
+			ratioMul:       0.2,
+			gamma:          1.0,
+			deviationGamma: 1.0,
+		}],
+		freqH: {
+			val : 10.0,
+			resetEveryTime: false,
+		},
 		noiseRatio: .2,
-		deviationGamma: .3,
-		gamma: .2,
+	},
+	color: {
+		scale: linearInterpolationStagesFillT([
+			{t:0.20, o:"#FF6666"},
+			{t:0.25, o:"#88FF88"},
+			{t:0.40, o:"#00FF00"},
+			{t:1.00, o:"#005599"},
+		]),
 	},
 	axis: {
 		spacing: 5,
 		thickness: 20,
 	},
 }
-CONF.color.scale = linearInterpolationStagesFillT([
-	{t:0.20, o:"#FF6666"},
-	{t:0.25, o:"#88FF88"},
-	{t:0.40, o:"#00FF00"},
-	{t:1.00, o:"#0088AA"},
-])
+
 // CONF.color.scale = linearInterpolationStagesFillT([
 // 	{t:0, o:"yellow"},
 // 	{t:1, o:"navy"},
@@ -42,11 +58,8 @@ canvas.width = CONF.scale * ( CONF.row.number * CONF.row.width + (CONF.row.numbe
 
 let rowWidth    = CONF.scale * CONF.row.width
 let sliceHeight = CONF.scale * CONF.slice.height
-let frequencyH = (CONF.color.frequencyH == null) ? 0 : CONF.color.frequencyH
 
 
-
-noise.seed(Math.random())
 function colorScale(t){
 	let interpolationData = linearInterpolationStagesMap(t, CONF.color.scale)
 	let color = chroma.mix(
@@ -57,14 +70,16 @@ function colorScale(t){
 	)
 	return color
 }
-function myCorrection(t){
-	return correctDeviation(correctGamma(t, CONF.color.gamma), CONF.color.deviationGamma)
-}
+
+
+let valGenRatioAddSum = CONF.valGen.arr.reduce((acc, e) => acc+e.ratioAdd, 0)
+
+noise.seed(Math.random())
 
 for(let r=0; r < CONF.row.number; r++){
 	let x = CONF.scale * r * ( CONF.row.width + CONF.row.spacing )
 
-	if(CONF.color.frequencyH == null){
+	if(CONF.valGen.freqH.resetEveryTime){
 		noise.seed(Math.random())
 	}
 
@@ -73,12 +88,27 @@ for(let r=0; r < CONF.row.number; r++){
 
 		let distanceFromEnd = Math.min(s, CONF.slice.number - s)
 
-		let perlinSource = .5 + .5 * noise.simplex2( CONF.color.frequency * s , r*frequencyH  )
-		let perlin = myCorrection(perlinSource)
 
-		let val = clamp(((1-CONF.color.noiseRatio) * perlin) + (CONF.color.noiseRatio * (Math.random() * 2 - 1)))
+		let ratioAdd = 0, ratioMul = 1, ratioMulSum = 0
 
-		
+		CONF.valGen.arr.forEach(e => {
+			let perlin = .5 + .5 * noise.simplex2( e.freq * s , e.freq * CONF.valGen.freqH.val * r )
+			let corrected = correctDeviation(correctGamma(perlin, e.gamma), e.deviationGamma)
+			
+			ratioAdd += corrected * e.ratioAdd
+
+			if(e.ratioMul >= 0){
+				ratioMul *= 1 - e.ratioMul   * (1 - corrected)
+			} else {
+				ratioMul *=    (-e.ratioMul) * (1 - corrected)
+				ratioMulSum += (-e.ratioMul)
+			}
+		})
+
+		let val = (ratioAdd / valGenRatioAddSum) * ratioMul + ratioMulSum
+		val = clamp(((1-CONF.valGen.noiseRatio) * val) + (CONF.valGen.noiseRatio * (Math.random() * 2 - 1)))
+
+
 		ctx.fillStyle = colorScale(val)
 		ctx.fillRect(x, y, rowWidth, sliceHeight);		
 	}
@@ -91,14 +121,6 @@ for(let x=0; x <canvas.width; x++){
 		x,
 		y,
 		1,
-		CONF.scale * CONF.axis.thickness / 2
-	);
-
-	ctx.fillStyle = colorScale(myCorrection(x/canvas.width))
-		ctx.fillRect(
-		x,
-		y + CONF.scale * CONF.axis.thickness / 2,
-		1,
-		CONF.scale * CONF.axis.thickness / 2
-	);
+		CONF.scale * CONF.axis.thickness
+	)
 }
